@@ -6,8 +6,8 @@ const MIN_DB = 0;
 const MAX_DB = 80;
 const UI_INTERVAL_MS = 150;
 const TOTAL_BARS = 40;
-const DB_AVERAGE_SAMPLES = 5; // Kaç kez ölçüm yapılacak
-const GAIN_OFFSET = 0; // desibel değerine eklenecek manuel düzeltme (örn: -20 ile ses seviyesi düşürülür)
+const DB_AVERAGE_SAMPLES = 5;
+const GAIN_OFFSET = 0;
 
 // DOM
 const valEl = document.getElementById("value");
@@ -29,7 +29,7 @@ for (let i = 0; i < TOTAL_BARS; i++) {
 }
 const bars = [...document.querySelectorAll("#bar-container .bar")];
 
-// (İsteğe bağlı: min/avg/max göstergeleri)
+// Min/avg/max göstergeleri (isteğe bağlı)
 const minEl = document.getElementById("mindbText");
 const avgEl = document.getElementById("avrdbText");
 const maxEl = document.getElementById("maxdbText");
@@ -42,6 +42,10 @@ let minDb = Infinity;
 let maxDb = -Infinity;
 let sumDb = 0;
 let sampleCnt = 0;
+
+// İlk örnekleri atlamak için
+let warmupCount = 0;
+const WARMUP_THRESHOLD = 10;
 
 // Mikrofon başlat
 async function init() {
@@ -59,7 +63,7 @@ async function init() {
     }
 }
 
-// RMS alma
+// RMS hesaplama
 function getRms() {
     const buf = new Float32Array(SAMPLE_WINDOW);
     analyser.getFloatTimeDomainData(buf);
@@ -68,12 +72,12 @@ function getRms() {
     return Math.sqrt(sum / buf.length);
 }
 
-// Ortalama dB alma (stabil ölçüm + gain offset)
+// Ortalama dB hesaplama (gain offset dahil)
 function getDbAveraged(samples = DB_AVERAGE_SAMPLES) {
     let total = 0;
     for (let i = 0; i < samples; i++) {
         const rms = getRms();
-        const db = 20 * Math.log10(rms) + MAX_DB + GAIN_OFFSET; // GAIN_OFFSET uygulandı
+        const db = 20 * Math.log10(rms) + MAX_DB + GAIN_OFFSET;
         total += Math.min(Math.max(db, MIN_DB), MAX_DB);
     }
     return total / samples;
@@ -94,6 +98,11 @@ function updateStatus(db) {
 }
 
 function updateUI() {
+    if (warmupCount < WARMUP_THRESHOLD) {
+        warmupCount++;
+        return;
+    }
+
     const db = getDbAveraged();
     const norm = db / MAX_DB;
     const active = Math.round(norm * bars.length);
