@@ -56,27 +56,21 @@ async function init() {
     }
 }
 
-function getRms() {
+function getRawLevel() {
     const buf = new Float32Array(SAMPLE_WINDOW);
     analyser.getFloatTimeDomainData(buf);
-    let sum = 0;
-    for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
-    const rms = Math.sqrt(sum / buf.length);
-    return rms < 0.00001 ? 0.00001 : rms; // 0'dan kaçınmak için min değer ver
+    let peak = 0;
+    for (let i = 0; i < buf.length; i++) {
+        peak = Math.max(peak, Math.abs(buf[i]));
+    }
+    return peak;
 }
 
-function getDb() {
-    const rms = getRms();
-    let db = 20 * Math.log10(rms);
-    db = db + MAX_DB + GAIN_OFFSET;
-    return Math.min(Math.max(db, MIN_DB), MAX_DB);
-}
-
-function updateStatus(db) {
-    if (db < 40) {
+function updateStatus(level) {
+    if (level < 0.1) {
         statEl.textContent = "Çok sessiz";
         statEl.style.color = "var(--quiet)";
-    } else if (db < 70) {
+    } else if (level < 0.5) {
         statEl.textContent = "Orta";
         statEl.style.color = "var(--mid)";
     } else {
@@ -86,18 +80,19 @@ function updateStatus(db) {
 }
 
 function updateUI() {
-    const db = getDb();
+    const level = getRawLevel();
+    const norm = Math.min(level, 1);
+    const displayVal = norm * MAX_DB;
 
-    const norm = db / MAX_DB;
     const active = Math.round(norm * bars.length);
     bars.forEach((b, i) => b.style.opacity = i < active ? "1" : "0.25");
 
-    valEl.innerHTML = `${Math.round(db)} <span>dB</span>`;
-    updateStatus(db);
+    valEl.innerHTML = `${Math.round(displayVal)} <span>dB</span>`;
+    updateStatus(norm);
 
-    minDb = Math.min(minDb, db);
-    maxDb = Math.max(maxDb, db);
-    sumDb += db;
+    minDb = Math.min(minDb, displayVal);
+    maxDb = Math.max(maxDb, displayVal);
+    sumDb += displayVal;
     sampleCnt++;
 
     if (minEl) minEl.textContent = `${Math.round(minDb)}`;
