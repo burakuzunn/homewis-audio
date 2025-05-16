@@ -6,40 +6,35 @@ const container = document.getElementById("bar-container");
 const barCount = 50;
 const bars = [];
 
+/* 50 bar – 0 dB’de alttaki yeşil barlardan başlayacak şekilde */
 for (let i = 0; i < barCount; i++) {
     const bar = document.createElement("div");
     bar.classList.add("bar");
 
-    if (i < 15) bar.classList.add("red");
-    else if (i < 30) bar.classList.add("orange");
-    else if (i < 40) bar.classList.add("yellow");
-    else bar.classList.add("green");
+    /* TERS GRADIENT: en alttaki 15 bar green → sarı → turuncu → en üstte kırmızı */
+    if (i < 15) bar.classList.add("green");
+    else if (i < 30) bar.classList.add("yellow");
+    else if (i < 40) bar.classList.add("orange");
+    else bar.classList.add("red");
 
-    const centerIndex = barCount / 2;
-    const dist = Math.abs(i + 0.5 - centerIndex);
-    const ratio = dist / centerIndex;
-    const minOp = 0.5;
-    const maxOp = 1.0;
-    const opacity = minOp + (maxOp - minOp) * ratio;
-    bar.style.opacity = opacity.toFixed(2);
+    /* hafif merkez-zayıf opaklık efekti */
+    const center = barCount / 2,
+        dist = Math.abs(i + 0.5 - center);
+    bar.style.opacity = (0.5 + (dist / center) * 0.5).toFixed(2);
 
     container.appendChild(bar);
     bars.push(bar);
 }
 
 let ctx, analyser;
+let noiseFloor = null;
+let calibratingFrames = 0;
 
 function updateStatus(dB) {
-    if (dB < 40) {
-        statEl.textContent = "Çok sessiz";
-        statEl.style.color = "var(--quiet)";
-    } else if (dB < 70) {
-        statEl.textContent = "Orta";
-        statEl.style.color = "var(--mid)";
-    } else {
-        statEl.textContent = "Yüksek";
-        statEl.style.color = "var(--loud)";
-    }
+    if (dB < 40) { statEl.textContent = "Çok sessiz";
+        statEl.style.color = "var(--quiet)"; } else if (dB < 70) { statEl.textContent = "Orta";
+        statEl.style.color = "var(--mid)"; } else { statEl.textContent = "Yüksek";
+        statEl.style.color = "var(--loud)"; }
 }
 
 function render() {
@@ -47,27 +42,30 @@ function render() {
     analyser.getByteTimeDomainData(data);
 
     let sum = 0;
-    for (const v of data) {
-        const x = (v - 128) / 128;
-        sum += x * x;
+    for (const v of data) { const x = (v - 128) / 128;
+        sum += x * x; }
+    const rms = Math.sqrt(sum / data.length);
+
+    /* — kalibrasyon — */
+    if (noiseFloor === null) { noiseFloor = rms;
+        calibratingFrames = 0; }
+    if (calibratingFrames < 10) {
+        noiseFloor = Math.min(noiseFloor, rms);
+        calibratingFrames++;
     }
 
-    const rms = Math.sqrt(sum / data.length);
-    let dB = Math.round(20 * Math.log10(rms) + 100);
-    dB = isFinite(dB) ? Math.min(Math.max(dB, 0), 100) : 0;
+    const adj = Math.max(0, rms - noiseFloor);
+    const norm = Math.min(adj / 0.05, 1); // 0-1 arası
+
+    const dB = Math.round(norm * 100);
 
     valEl.innerHTML = `${dB} <span>dB</span>`;
     updateStatus(dB);
 
-    // Pointer çizgisi yukarıdan aşağıya hareket eder
-    const pct = dB / 100;
-    ptrEl.style.top = `${(1 - pct) * 100}%`;
+    ptrEl.style.top = `${(1 - norm) * 100}%`;
 
-    const activeCount = Math.round(pct * barCount);
-
-    bars.forEach((bar, i) => {
-        bar.style.opacity = i < activeCount ? "1" : "0.2";
-    });
+    const active = Math.round(norm * barCount);
+    bars.forEach((b, i) => { b.style.opacity = i < active ? "1" : "0.2"; });
 }
 
 async function init() {
@@ -75,13 +73,10 @@ async function init() {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         ctx = new(window.AudioContext || window.webkitAudioContext)();
         analyser = ctx.createAnalyser();
-        analyser.fftSize = 1024; // CPU yükünü azalt
+        analyser.fftSize = 1024;
 
-        const src = ctx.createMediaStreamSource(stream);
-        src.connect(analyser);
-
-        // render() fonksiyonunu daha az yoğun çalıştır:
-        setInterval(render, 100); // 10 FPS (optimum performans)
+        ctx.createMediaStreamSource(stream).connect(analyser);
+        setInterval(render, 100);
     } catch (err) {
         valEl.textContent = "İzin reddedildi";
         statEl.textContent = "";
