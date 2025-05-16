@@ -1,37 +1,35 @@
 <!DOCTYPE html>
 <html lang="tr">
-
-<head>
+  <head>
     <meta charset="utf-8" />
     <title>Süpürge Gürültü Testi</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="styles.css" />
-</head>
+  </head>
 
-<body>
+  <body>
     <div id="logo">
-        <img src="arcelik_logo.png" alt="arçelik" />
+      <img src="arcelik_logo.png" alt="arçelik" />
     </div>
 
     <h1>Süpürge Gürültü Testi</h1>
     <div id="toggle">🔊 Gerçek Zamanlı Ses Ölçer</div>
 
     <div id="cards">
-        <div class="card">
-            <div id="value">-- <span>dB</span></div>
-            <div id="status">&nbsp;</div>
+      <div class="card">
+        <div id="gauge">
+          <div id="bar-container">
+            <div id="pointer"></div>
+          </div>
         </div>
+      </div>
 
-        <div class="card">
-            <div id="gauge">
-                <div id="pointer"></div>
-                <div id="bar-container"></div>
-            </div>
-            <div id="glabels"><span>0 dB</span><span>80+ dB</span></div>
-        </div>
+      <div class="card">
+        <div id="value">-- <span>dB</span></div>
+        <div id="status">&nbsp;</div>
+      </div>
     </div>
 
     <script src="script.js"></script>
-</body>
-
+  </body>
 </html>

@@ -1,12 +1,13 @@
 :root {
-    --quiet: #2ecc71;
-    --mid: #f1c40f;
-    --warn: #e67e22;
-    --loud: #e74c3c;
-    --bg: #121212;
-    --panel: #1e1e1e;
-    --text: #ffffff;
-    --sub: #8a8a8a;
+     --quiet: #2ecc71; 
+      --mid:   #f1c40f; 
+      --warn:  #e67e22; 
+      --loud:  #e74c3c; 
+      --bg:    #121212;
+      --panel: #1e1e1e;
+      --text:  #ffffff;
+      --sub:   #8a8a8a;
+      --pointer: #3498db; 
 }
 
 * {
@@ -43,21 +44,22 @@ h1 {
     background: #333;
     padding: 0.6rem 1.4rem;
     border-radius: 30px;
+    cursor: default;
 }
 
 #cards {
     display: flex;
     flex-direction: column;
     gap: 2rem;
-    width: 100%;
-    max-width: 650px;
+    margin: 0 auto;
 }
 
 .card {
     background: var(--panel);
     border-radius: 16px;
-    padding: 2rem;
     display: flex;
+    padding: 2rem;
+    width: auto !important;
     flex-direction: column;
     align-items: center;
 }
@@ -82,8 +84,6 @@ h1 {
 
 #gauge {
     position: relative;
-    padding: 0 16px;
-    margin-top: 1rem;
     width: 100%;
     overflow: hidden;
     display: flex;
@@ -93,17 +93,20 @@ h1 {
 
 #bar-container {
     display: flex;
-    gap: 2px;
-    flex-wrap: nowrap;
-    justify-content: center;
-    align-items: flex-end;
+    gap: 5px;
+    width: 25px;
+    flex-direction: column-reverse;
+    align-items: center;
+    position: relative;
 }
 
+
 .bar {
-    width: 6px;
-    height: 24px;
+    width: 100%;
+    height: 4px;
     border-radius: 2px;
     background: #444;
+    flex-shrink: 0;
 }
 
 .bar.green {
@@ -124,14 +127,13 @@ h1 {
 
 #pointer {
     position: absolute;
-    top: -6px;
-    width: 2px;
-    height: 36px;
-    background: #3498db;
-    border-radius: 1px;
+    width: 70px;
+    border-radius: 5px;
+    height: 4px !important;
+    top: 0px !important;
+    transition: top 0.05s linear;
+    background: var(--pointer);
     z-index: 5;
-    left: 0;
-    transition: left 0.05s linear;
 }
 
 #glabels {
