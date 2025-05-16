@@ -1,104 +1,98 @@
-/* ------------------- PARAMETRELER ------------------- */
-const SAMPLE_WINDOW = 128; // RMS için örnek sayısı
-const MIN_DB = 0; // gösterge alt sınırı
-const MAX_DB = 80; // gösterge üst sınırı
-const UI_INTERVAL_MS = 150; // UI güncelleme sıklığı
-const SLIDER_LERP = 0.5; // 0–1 arası (0 = anlık, 1 = çok yavaş)
+'use strict';
 
-/* ------------------- DOM ------------------- */
-const valEl = document.getElementById("value"); // büyük dB
-const statEl = document.getElementById("status"); // “Çok sessiz” vs.
-const ptrEl = document.getElementById("pointer"); // mavi çizgi
-const bars = [...document.querySelectorAll("#bar-container .bar")];
+// Parametreler
+const SAMPLE_WINDOW = 128;
+const MIN_DB = 0;
+const MAX_DB = 80;
+const UI_INTERVAL = 150;
+const SLIDER_LERP = 0.5;
+const TOTAL_BARS = 40;
 
-// (İstersen min/avg/max göstergelerine de ID ver)
-const minEl = document.getElementById("mindbText"); // opsiyonel
-const avgEl = document.getElementById("avrdbText");
-const maxEl = document.getElementById("maxdbText");
+// DOM
+const valEl = document.getElementById('value');
+const statEl = document.getElementById('status');
+const ptrEl = document.getElementById('pointer');
+const barBox = document.getElementById('bar-container');
 
-let ctx, analyser;
-let smoothDb = 0;
+// Barları oluştur
+for (let i = 0; i < TOTAL_BARS; i++) {
+    const bar = document.createElement('div');
+    bar.className = 'bar';
+    const r = i / TOTAL_BARS;
+    if (r < 0.50) bar.classList.add('green');
+    else if (r < 0.75) bar.classList.add('yellow');
+    else if (r < 0.90) bar.classList.add('orange');
+    else bar.classList.add('red');
+    barBox.appendChild(bar);
+}
+const bars = [...document.querySelectorAll('#bar-container .bar')];
 
-/* istatistik */
-let minDb = Infinity;
-let maxDb = -Infinity;
-let sumDb = 0;
-let sampleCnt = 0;
+// Değişkenler
+let ctx, analyser, smoothDb = 0;
+let minDb = Infinity,
+    maxDb = -Infinity,
+    sumDb = 0,
+    cnt = 0;
 
-/* ------------------- WEB AUDIO ------------------- */
+// Mikrofon başlat
 async function init() {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         ctx = new(window.AudioContext || window.webkitAudioContext)();
         analyser = ctx.createAnalyser();
         analyser.fftSize = 2048;
-
         ctx.createMediaStreamSource(stream).connect(analyser);
-
-        setInterval(updateUI, UI_INTERVAL_MS);
+        setInterval(updateUI, UI_INTERVAL);
     } catch (e) {
-        valEl.textContent = "İzin reddedildi";
-        statEl.textContent = "";
-        console.error("Mic error:", e);
+        valEl.textContent = 'İzin reddedildi';
+        console.error(e);
     }
 }
 
-/* ------------------- SEVİYE HESABI ------------------- */
+// RMS & dB
 function getRms() {
     const buf = new Float32Array(SAMPLE_WINDOW);
     analyser.getFloatTimeDomainData(buf);
     let sum = 0;
-    for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+    for (const v of buf) sum += v * v;
     return Math.sqrt(sum / buf.length);
 }
 
 function getDb() {
-    const rms = getRms();
-    const db = 20 * Math.log10(rms);
-    const shifted = db + MAX_DB; // negatifleri pozitife çek
-    return Math.min(Math.max(shifted, MIN_DB), MAX_DB);
+    return Math.min(Math.max(20 * Math.log10(getRms()) + MAX_DB, MIN_DB), MAX_DB);
 }
 
-/* ------------------- UI ------------------- */
+// UI güncelle
 function updateStatus(db) {
     if (db < 40) {
-        statEl.textContent = "Çok sessiz";
-        statEl.style.color = "var(--quiet)";
+        statEl.textContent = 'Çok sessiz';
+        statEl.style.color = 'var(--quiet)';
     } else if (db < 70) {
-        statEl.textContent = "Orta";
-        statEl.style.color = "var(--mid)";
+        statEl.textContent = 'Orta';
+        statEl.style.color = 'var(--mid)';
     } else {
-        statEl.textContent = "Yüksek";
-        statEl.style.color = "var(--loud)";
+        statEl.textContent = 'Yüksek';
+        statEl.style.color = 'var(--loud)';
     }
 }
 
 function updateUI() {
     const db = getDb();
-
-    /* Slider/bar yumuşatma */
     smoothDb = smoothDb * (1 - SLIDER_LERP) + db * SLIDER_LERP;
 
-    /* bar & pointer */
-    const norm = smoothDb / MAX_DB; // 0-1
+    const norm = smoothDb / MAX_DB;
     ptrEl.style.top = `${(1 - norm) * 100}%`;
     const active = Math.round(norm * bars.length);
-    bars.forEach((b, i) => b.style.opacity = i < active ? "1" : "0.25");
+    bars.forEach((b, i) => b.style.opacity = i < active ? '1' : '0.25');
 
-    /* sayısal ve durum metni */
     valEl.innerHTML = `${Math.round(smoothDb)} <span>dB</span>`;
     updateStatus(smoothDb);
 
-    /* istatistikler */
     minDb = Math.min(minDb, db);
     maxDb = Math.max(maxDb, db);
     sumDb += db;
-    sampleCnt++;
-
-    if (minEl) minEl.textContent = `${Math.round(minDb)}`;
-    if (avgEl) avgEl.textContent = `${Math.round(sumDb / sampleCnt)}`;
-    if (maxEl) maxEl.textContent = `${Math.round(maxDb)}`;
+    cnt++;
 }
 
-/* ------------------- succes ------------------- */
-window.addEventListener("load", init);
+// Başlat
+window.addEventListener('load', init);
