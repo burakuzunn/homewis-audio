@@ -1,0 +1,144 @@
+:root {
+    --quiet: #2ecc71;
+    --mid: #f1c40f;
+    --warn: #e67e22;
+    --loud: #e74c3c;
+    --bg: #121212;
+    --panel: #1e1e1e;
+    --text: #ffffff;
+    --sub: #8a8a8a;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 3vh 3vw;
+    gap: 2vh;
+    min-height: 100vh;
+}
+
+#logo img {
+    height: 36px;
+}
+
+h1 {
+    font-size: 2.4rem;
+    text-align: center;
+}
+
+#toggle {
+    font-size: 1rem;
+    color: #bbb;
+    opacity: 0.6;
+    background: #333;
+    padding: 0.6rem 1.4rem;
+    border-radius: 30px;
+}
+
+#cards {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    width: 100%;
+    max-width: 650px;
+}
+
+.card {
+    background: var(--panel);
+    border-radius: 16px;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#value {
+    font-size: 6rem;
+    font-weight: bold;
+}
+
+#value span {
+    font-size: 2rem;
+    color: var(--sub);
+}
+
+#status {
+    margin-top: 0.5rem;
+    font-size: 1.1rem;
+}
+
+
+/* ───── Gürültü Çubuğu Alanı ───── */
+
+#gauge {
+    position: relative;
+    padding: 0 16px;
+    margin-top: 1rem;
+    width: 100%;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+}
+
+#bar-container {
+    display: flex;
+    gap: 2px;
+    flex-wrap: nowrap;
+    justify-content: center;
+    align-items: flex-end;
+}
+
+.bar {
+    width: 6px;
+    height: 24px;
+    border-radius: 2px;
+    background: #444;
+}
+
+.bar.green {
+    background: var(--quiet);
+}
+
+.bar.yellow {
+    background: var(--mid);
+}
+
+.bar.orange {
+    background: var(--warn);
+}
+
+.bar.red {
+    background: var(--loud);
+}
+
+#pointer {
+    position: absolute;
+    top: -6px;
+    width: 2px;
+    height: 36px;
+    background: #3498db;
+    border-radius: 1px;
+    z-index: 5;
+    left: 0;
+    transition: left 0.05s linear;
+}
+
+#glabels {
+    margin-top: 0.6rem;
+    font-size: 0.85rem;
+    color: var(--sub);
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+}
