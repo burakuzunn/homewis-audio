@@ -75,21 +75,17 @@ function updateStatus(db) {
 
 function updateUI() {
     const db = getDb();
+    smoothDb = db; // doğrudan anlık değer al, gecikmesiz
 
-    /* Slider/bar yumuşatma */
-    smoothDb = smoothDb * (1 - SLIDER_LERP) + db * SLIDER_LERP;
-
-    /* bar & pointer */
-    const norm = smoothDb / MAX_DB; // 0-1
-    ptrEl.style.top = `${(1 - norm) * 100}%`;
+    const norm = smoothDb / MAX_DB;
     const active = Math.round(norm * bars.length);
-    bars.forEach((b, i) => b.style.opacity = i < active ? "1" : "0.25");
+    bars.forEach((b, i) => {
+        b.style.opacity = i < active ? '1' : '0.25';
+    });
 
-    /* sayısal ve durum metni */
     valEl.innerHTML = `${Math.round(smoothDb)} <span>dB</span>`;
     updateStatus(smoothDb);
 
-    /* istatistikler */
     minDb = Math.min(minDb, db);
     maxDb = Math.max(maxDb, db);
     sumDb += db;
@@ -99,6 +95,7 @@ function updateUI() {
     if (avgEl) avgEl.textContent = `${Math.round(sumDb / sampleCnt)}`;
     if (maxEl) maxEl.textContent = `${Math.round(maxDb)}`;
 }
+
 
 /* ------------------- start ------------------- */
 /* ------------------- succes ------------------- */
