@@ -100,5 +100,5 @@ function updateUI() {
     if (maxEl) maxEl.textContent = `${Math.round(maxDb)}`;
 }
 
-/* ------------------- start ------------------- */
+/* ------------------- succes ------------------- */
 window.addEventListener("load", init);
