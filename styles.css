@@ -155,3 +155,40 @@ h1 {
     transition: top .05s linear;
     z-index: 5
 }
+
+
+/* (sadece pointer stili silindi) */
+
+#bar-container {
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: center;
+    gap: 4px;
+    width: 80px;
+    height: 100%;
+    position: relative
+}
+
+.bar {
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: #444;
+    transition: opacity .1s;
+}
+
+.bar.green {
+    background: var(--quiet)
+}
+
+.bar.yellow {
+    background: var(--mid)
+}
+
+.bar.orange {
+    background: var(--warn)
+}
+
+.bar.red {
+    background: var(--loud)
+}
