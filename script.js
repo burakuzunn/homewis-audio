@@ -8,6 +8,7 @@ const UI_INTERVAL_MS = 150;
 const TOTAL_BARS = 40;
 const GAIN_OFFSET = 0;
 const SLIDER_SMOOTH = 0.5;
+const DB_BUFFER_SIZE = 10; // Zaman tabanlı ortalama için
 
 // DOM
 const valEl = document.getElementById("value");
@@ -37,6 +38,8 @@ let minDb = Infinity,
     sumDb = 0,
     sampleCnt = 0;
 
+let dbBuffer = Array(DB_BUFFER_SIZE).fill(0); // db buffer
+
 async function init() {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -61,7 +64,6 @@ function getRms() {
     return rms < 0.0002 ? 0 : rms; // çok küçük RMS varsa sıfırla
 }
 
-
 function getDb() {
     const rms = getRms();
     let db = 20 * Math.log10(rms);
@@ -83,7 +85,9 @@ function updateStatus(db) {
 }
 
 function updateUI() {
-    const db = getDb();
+    dbBuffer.shift();
+    dbBuffer.push(getDb());
+    const db = dbBuffer.reduce((a, b) => a + b) / dbBuffer.length;
 
     // Ani düşüşü engelle (örneğin süpürge sesi devam ederken aniden düşmesin)
     if (db < smoothDb - 10) {
@@ -108,6 +112,5 @@ function updateUI() {
     if (avgEl) avgEl.textContent = `${Math.round(sumDb / sampleCnt)}`;
     if (maxEl) maxEl.textContent = `${Math.round(maxDb)}`;
 }
-
 
 window.addEventListener("load", init);
