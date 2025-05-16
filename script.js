@@ -57,8 +57,10 @@ function getRms() {
     analyser.getFloatTimeDomainData(buf);
     let sum = 0;
     for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
-    return Math.sqrt(sum / buf.length);
+    const rms = Math.sqrt(sum / buf.length);
+    return rms < 0.0002 ? 0 : rms; // çok küçük RMS varsa sıfırla
 }
+
 
 function getDb() {
     const rms = getRms();
@@ -82,7 +84,13 @@ function updateStatus(db) {
 
 function updateUI() {
     const db = getDb();
-    smoothDb = smoothDb * (1 - SLIDER_SMOOTH) + db * SLIDER_SMOOTH;
+
+    // Ani düşüşü engelle (örneğin süpürge sesi devam ederken aniden düşmesin)
+    if (db < smoothDb - 10) {
+        smoothDb -= 1; // sadece 1 dB düşür
+    } else {
+        smoothDb = smoothDb * (1 - SLIDER_SMOOTH) + db * SLIDER_SMOOTH;
+    }
 
     const norm = smoothDb / MAX_DB;
     const active = Math.round(norm * bars.length);
@@ -100,5 +108,6 @@ function updateUI() {
     if (avgEl) avgEl.textContent = `${Math.round(sumDb / sampleCnt)}`;
     if (maxEl) maxEl.textContent = `${Math.round(maxDb)}`;
 }
+
 
 window.addEventListener("load", init);
