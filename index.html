@@ -1,35 +1,15 @@
-<!DOCTYPE html>
-<html lang="tr">
-
-<head>
-    <meta charset="utf-8" />
-    <title>Süpürge Gürültü Testi</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="stylesheet" href="styles.css" />
-</head>
-
-<body>
-    <div id="logo"><img src="arcelik_logo.png" alt="arçelik" /></div>
-
-    <h1>Süpürge Gürültü Testi</h1>
-    <div id="toggle">🔊 Gerçek Zamanlı Ses Ölçer</div>
-
-    <div id="cards">
-        <div class="card">
-            <div id="gauge">
-                <div id="bar-container">
-                    <div id="pointer"></div>
-                </div>
-            </div>
-        </div>
-
-        <div class="card">
-            <div id="value">-- <span>dB</span></div>
-            <div id="status">&nbsp;</div>
-        </div>
-    </div>
-
-    <script src="script.js"></script>
-</body>
-
-</html>
+/* ------------------- PARAMETRELER ------------------- */ const SAMPLE_WINDOW = 128; // RMS için örnek sayısı const MIN_DB = 0; // gösterge alt sınırı const MAX_DB = 80; // gösterge üst sınırı const UI_INTERVAL_MS = 150; // UI güncelleme sıklığı const
+SLIDER_LERP = 0.5; // 0–1 (0 = anlık, 1 = yavaş) /* ------------------- DOM ------------------- */ const valEl = document.getElementById("value"); // büyük dB const statEl = document.getElementById("status"); // “Çok sessiz” vs. const ptrEl = document.getElementById("pointer");
+// mavi çizgi const barBox = document.getElementById("bar-container"); // (İstersen min/avg/max göstergelerine de ID ver) const minEl = document.getElementById("mindbText"); // opsiyonel const avgEl = document.getElementById("avrdbText"); const maxEl
+= document.getElementById("maxdbText"); /* ---- BARLARI OLUŞTUR ---- */ const TOTAL_BARS = 40; // kaç segment for (let i = 0; i
+< TOTAL_BARS; i++) { const div=d ocument.createElement( "div"); div.classList.add( "bar"); const r=i / TOTAL_BARS; // 0-1 arası
+    konum if (r < 0.50) div.classList.add( "green"); else if (r < 0.75) div.classList.add( "yellow"); else if (r < 0.90) div.classList.add( "orange"); else div.classList.add( "red"); barBox.appendChild(div); } const bars=[ ...document.querySelectorAll(
+    "#bar-container .bar")]; let ctx, analyser, smoothDb=0 ; /* istatistik */ let minDb=I nfinity; let maxDb=- Infinity; let sumDb=0 ; let sampleCnt=0 ; /* ------------------- WEB AUDIO ------------------- */ async function init() { try { const stream=a wait navigator.mediaDevices.getUserMedia({
+    audio:true }); ctx=n ew (window.AudioContext || window.webkitAudioContext)(); analyser=c tx.createAnalyser(); analyser.fftSize=2 048; ctx.createMediaStreamSource(stream).connect(analyser); setInterval(updateUI, UI_INTERVAL_MS); } catch (e) { valEl.textContent="İzin reddedildi"
+    ; statEl.textContent="" ; console.error( "Mic error:", e); } } /* ------------------- SEVİYE HESABI ------------------- */ function getRms() { const buf=n ew Float32Array(SAMPLE_WINDOW); analyser.getFloatTimeDomainData(buf); let sum=0 ; for (const v of
+    buf) sum +=v * v; return Math.sqrt(sum / buf.length); } function getDb() { const db=2 0 * Math.log10(getRms()) + MAX_DB; // negatifleri pozitife çek return Math.min(Math.max(db, MIN_DB), MAX_DB); } /* ------------------- UI ------------------- */ function
+    updateStatus(db) { if (db < 40) { statEl.textContent="Çok sessiz" ; statEl.style.color="var(--quiet)" ; } else if (db < 70) { statEl.textContent="Orta" ; statEl.style.color="var(--mid)" ; } else { statEl.textContent="Yüksek" ; statEl.style.color="var(--loud)"
+    ; } } function updateUI() { const db=g etDb(); /* yumuşatma */ smoothDb=s moothDb * (1 - SLIDER_LERP) + db * SLIDER_LERP; /* pointer & barlar */ const norm=s moothDb / MAX_DB; // 0-1 ptrEl.style.top=` ${(1 - norm) * 100}%`; const active=M ath.round(norm
+    * bars.length); bars.forEach((b, i)=> b.style.opacity = i
+    < active ? "1" : "0.25"); /* değer & durum metni */ valEl.innerHTML=` ${Math.round(smoothDb)} <span>dB</span>`; updateStatus(smoothDb); /* istatistikler */ minDb = Math.min(minDb, db); maxDb = Math.max(maxDb, db); sumDb += db; sampleCnt++; if (minEl) minEl.textContent = `${Math.round(minDb)}`; if (avgEl) avgEl.textContent = `${Math.round(sumDb /
+        sampleCnt)}`; if (maxEl) maxEl.textContent = `${Math.round(maxDb)}`; } /* ------------------- BAŞLAT ------------------- */ window.addEventListener("load", init);
