@@ -6,7 +6,7 @@ const container = document.getElementById("bar-container");
 const barCount = 100;
 const bars = [];
 
-/* bar renkleri: alt yeşil → üst kırmızı */
+/* bar dizisini (alt yeşil ➜ üst kırmızı) oluştur */
 for (let i = 0; i < barCount; i++) {
     const bar = document.createElement("div");
     bar.className = "bar";
@@ -18,9 +18,16 @@ for (let i = 0; i < barCount; i++) {
     bars.push(bar);
 }
 
-/* Web-Audio */
+/* Web Audio değişkenleri */
 let ctx, analyser;
-let smoothDb = 0; // EMA
+
+/* ---- kalibrasyon ---- */
+let noiseRef = null; // sessiz ortamdaki taban dB
+let calFrames = 0;
+const CAL_FRAMES = 10; // 10 × 150 ms ≈ 1,5 sn
+
+/* EMA */
+let smoothDb = 0;
 
 function updateStatus(db) {
     if (db < 40) {
@@ -48,19 +55,28 @@ function render() {
     }
     const rms = Math.sqrt(sum / N);
 
-    /* dBFS pozitif (0 = sessizlik) */
-    const rawDb = Math.max(0, 20 * Math.log10(rms) + 100); // clamp alt sınır 0
-    smoothDb = 0.85 * smoothDb + 0.15 * rawDb; // α = 0.15
+    /* dBFS (+100 => pozitif) */
+    const rawDb = 20 * Math.log10(rms) + 100;
 
-    /* 0-100 bar ölçeğine doğrudan kullan */
-    const dispDb = Math.round(Math.min(smoothDb, 100));
-    const norm = dispDb / 100; // 0-1
+    /* ---- kalibrasyon sadece ilk CAL_FRAMES kare ---- */
+    if (noiseRef === null) noiseRef = rawDb;
+    if (calFrames < CAL_FRAMES) {
+        noiseRef = Math.min(noiseRef, rawDb); // en düşük değeri sakla
+        calFrames++;
+    }
 
-    /* UI */
+    /* işlenmiş dB */
+    const adjDb = Math.max(0, rawDb - noiseRef);
+    smoothDb = smoothDb * 0.9 + adjDb * 0.1; // EMA α=0.1
+    const norm = Math.min(smoothDb / 30, 1); // 0-100 ölçeği için 0-30 dB bandı
+    const dispDb = Math.round(norm * 100);
+
+    /* ---- UI ---- */
     valEl.innerHTML = `${dispDb} <span>dB</span>`;
     updateStatus(dispDb);
 
     ptrEl.style.top = `${(1-norm)*100}%`;
+
     const active = Math.round(norm * barCount);
     bars.forEach((b, i) => b.style.opacity = i < active ? "1" : "0.25");
 }
@@ -70,10 +86,11 @@ async function init() {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         ctx = new(window.AudioContext || window.webkitAudioContext)();
         analyser = ctx.createAnalyser();
-        analyser.fftSize = 2048; // kararlı RMS
+        analyser.fftSize = 2048; // daha sağlam RMS
         ctx.createMediaStreamSource(stream).connect(analyser);
 
-        setInterval(render, 150); // 150 ms’de bir ölçüm
+        /* 150 ms’de bir örnekleme */
+        setInterval(render, 150);
     } catch (err) {
         valEl.textContent = "İzin reddedildi";
         statEl.textContent = "";
