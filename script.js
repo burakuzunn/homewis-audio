@@ -7,6 +7,7 @@ const MAX_DB = 80;
 const UI_INTERVAL_MS = 150;
 const TOTAL_BARS = 40;
 const DB_AVERAGE_SAMPLES = 5; // Kaç kez ölçüm yapılacak
+const GAIN_OFFSET = 0; // desibel değerine eklenecek manuel düzeltme (örn: -20 ile ses seviyesi düşürülür)
 
 // DOM
 const valEl = document.getElementById("value");
@@ -67,12 +68,12 @@ function getRms() {
     return Math.sqrt(sum / buf.length);
 }
 
-// Ortalama dB alma (stabil ölçüm)
+// Ortalama dB alma (stabil ölçüm + gain offset)
 function getDbAveraged(samples = DB_AVERAGE_SAMPLES) {
     let total = 0;
     for (let i = 0; i < samples; i++) {
         const rms = getRms();
-        const db = 20 * Math.log10(rms) + MAX_DB;
+        const db = 20 * Math.log10(rms) + MAX_DB + GAIN_OFFSET; // GAIN_OFFSET uygulandı
         total += Math.min(Math.max(db, MIN_DB), MAX_DB);
     }
     return total / samples;
