@@ -37,6 +37,10 @@ let minDb = Infinity,
     sumDb = 0,
     sampleCnt = 0;
 
+let lastDb = 0;
+let decayHold = 0;
+const DECAY_HOLD_MAX = 8;
+
 async function init() {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -84,12 +88,18 @@ function updateStatus(db) {
 function updateUI() {
     const db = getDb();
 
-    // Sadece artış veya yavaş düşüşe izin ver (kararlı sabit ses için)
-    if (db < smoothDb) {
-        smoothDb = smoothDb * 0.9 + db * 0.1; // yavaşça düşsün
+    if (db >= lastDb) {
+        smoothDb = db;
+        decayHold = DECAY_HOLD_MAX;
     } else {
-        smoothDb = smoothDb * (1 - SLIDER_SMOOTH) + db * SLIDER_SMOOTH; // hızlı yükselir
+        if (decayHold > 0) {
+            decayHold--;
+        } else {
+            smoothDb = smoothDb * (1 - SLIDER_SMOOTH) + db * SLIDER_SMOOTH;
+        }
     }
+
+    lastDb = db;
 
     const norm = smoothDb / MAX_DB;
     const active = Math.round(norm * bars.length);
