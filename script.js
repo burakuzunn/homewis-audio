@@ -59,11 +59,12 @@ async function init() {
 function getRawLevel() {
     const buf = new Float32Array(SAMPLE_WINDOW);
     analyser.getFloatTimeDomainData(buf);
-    let peak = 0;
+    let sum = 0;
     for (let i = 0; i < buf.length; i++) {
-        peak = Math.max(peak, Math.abs(buf[i]));
+        sum += buf[i] * buf[i];
     }
-    return peak;
+    const rms = Math.sqrt(sum / buf.length);
+    return rms;
 }
 
 function updateStatus(level) {
