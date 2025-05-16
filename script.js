@@ -6,6 +6,7 @@ const MIN_DB = 0;
 const MAX_DB = 80;
 const UI_INTERVAL_MS = 150;
 const TOTAL_BARS = 40;
+const DB_AVERAGE_SAMPLES = 5; // Kaç kez ölçüm yapılacak
 
 // DOM
 const valEl = document.getElementById("value");
@@ -57,7 +58,7 @@ async function init() {
     }
 }
 
-// RMS ve dB hesaplama
+// RMS alma
 function getRms() {
     const buf = new Float32Array(SAMPLE_WINDOW);
     analyser.getFloatTimeDomainData(buf);
@@ -66,11 +67,15 @@ function getRms() {
     return Math.sqrt(sum / buf.length);
 }
 
-function getDb() {
-    const rms = getRms();
-    const db = 20 * Math.log10(rms);
-    const shifted = db + MAX_DB;
-    return Math.min(Math.max(shifted, MIN_DB), MAX_DB);
+// Ortalama dB alma (stabil ölçüm)
+function getDbAveraged(samples = DB_AVERAGE_SAMPLES) {
+    let total = 0;
+    for (let i = 0; i < samples; i++) {
+        const rms = getRms();
+        const db = 20 * Math.log10(rms) + MAX_DB;
+        total += Math.min(Math.max(db, MIN_DB), MAX_DB);
+    }
+    return total / samples;
 }
 
 // UI güncelle
@@ -88,7 +93,7 @@ function updateStatus(db) {
 }
 
 function updateUI() {
-    const db = getDb();
+    const db = getDbAveraged();
     const norm = db / MAX_DB;
     const active = Math.round(norm * bars.length);
 
