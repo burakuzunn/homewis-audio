@@ -8,7 +8,6 @@ const UI_INTERVAL_MS = 150;
 const TOTAL_BARS = 40;
 const GAIN_OFFSET = 0;
 const SLIDER_SMOOTH = 0.5;
-const DB_BUFFER_SIZE = 10; // Zaman tabanlı ortalama için
 
 // DOM
 const valEl = document.getElementById("value");
@@ -38,8 +37,6 @@ let minDb = Infinity,
     sumDb = 0,
     sampleCnt = 0;
 
-let dbBuffer = Array(DB_BUFFER_SIZE).fill(0); // db buffer
-
 async function init() {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -61,7 +58,7 @@ function getRms() {
     let sum = 0;
     for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
     const rms = Math.sqrt(sum / buf.length);
-    return rms < 0.0002 ? 0 : rms; // çok küçük RMS varsa sıfırla
+    return rms < 0.0002 ? 0 : rms;
 }
 
 function getDb() {
@@ -85,15 +82,13 @@ function updateStatus(db) {
 }
 
 function updateUI() {
-    dbBuffer.shift();
-    dbBuffer.push(getDb());
-    const db = dbBuffer.reduce((a, b) => a + b) / dbBuffer.length;
+    const db = getDb();
 
-    // Ani düşüşü engelle (örneğin süpürge sesi devam ederken aniden düşmesin)
-    if (db < smoothDb - 10) {
-        smoothDb -= 1; // sadece 1 dB düşür
+    // Sadece artış veya yavaş düşüşe izin ver (kararlı sabit ses için)
+    if (db < smoothDb) {
+        smoothDb = smoothDb * 0.9 + db * 0.1; // yavaşça düşsün
     } else {
-        smoothDb = smoothDb * (1 - SLIDER_SMOOTH) + db * SLIDER_SMOOTH;
+        smoothDb = smoothDb * (1 - SLIDER_SMOOTH) + db * SLIDER_SMOOTH; // hızlı yükselir
     }
 
     const norm = smoothDb / MAX_DB;
