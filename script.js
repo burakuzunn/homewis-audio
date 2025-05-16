@@ -3,23 +3,23 @@ const statEl = document.getElementById("status");
 const ptrEl = document.getElementById("pointer");
 const container = document.getElementById("bar-container");
 
-const barCount = 50;
+const barCount = 100; // 100  adet bar
 const bars = [];
 
-/* 50 bar – 0 dB’de alttaki yeşil barlardan başlayacak şekilde */
+/* ------- barları oluştur (0-dB yeşil, 100-dB kırmızı) ------- */
 for (let i = 0; i < barCount; i++) {
     const bar = document.createElement("div");
     bar.classList.add("bar");
 
-    /* TERS GRADIENT: en alttaki 15 bar green → sarı → turuncu → en üstte kırmızı */
-    if (i < 15) bar.classList.add("green");
-    else if (i < 30) bar.classList.add("yellow");
-    else if (i < 40) bar.classList.add("orange");
+    /* alt-orta-üst renk dilimi: 0-29 green, 30-59 yellow, 60-79 orange, 80-99 red */
+    if (i < 30) bar.classList.add("green");
+    else if (i < 60) bar.classList.add("yellow");
+    else if (i < 80) bar.classList.add("orange");
     else bar.classList.add("red");
 
-    /* hafif merkez-zayıf opaklık efekti */
+    /* hafif opaklık efekti */
     const center = barCount / 2,
-        dist = Math.abs(i + 0.5 - center);
+        dist = Math.abs(i + .5 - center);
     bar.style.opacity = (0.5 + (dist / center) * 0.5).toFixed(2);
 
     container.appendChild(bar);
@@ -27,8 +27,8 @@ for (let i = 0; i < barCount; i++) {
 }
 
 let ctx, analyser;
-let noiseFloor = null;
-let calibratingFrames = 0;
+let noiseFloor = null,
+    calibFrames = 0;
 
 function updateStatus(dB) {
     if (dB < 40) { statEl.textContent = "Çok sessiz";
@@ -41,29 +41,28 @@ function render() {
     const data = new Uint8Array(analyser.fftSize);
     analyser.getByteTimeDomainData(data);
 
+    /* RMS */
     let sum = 0;
     for (const v of data) { const x = (v - 128) / 128;
         sum += x * x; }
     const rms = Math.sqrt(sum / data.length);
 
-    /* — kalibrasyon — */
+    /* kalibrasyon – ilk 1 sn en düşük RMS’i taban al */
     if (noiseFloor === null) { noiseFloor = rms;
-        calibratingFrames = 0; }
-    if (calibratingFrames < 10) {
-        noiseFloor = Math.min(noiseFloor, rms);
-        calibratingFrames++;
-    }
+        calibFrames = 0; }
+    if (calibFrames < 10) { noiseFloor = Math.min(noiseFloor, rms);
+        calibFrames++; }
 
     const adj = Math.max(0, rms - noiseFloor);
-    const norm = Math.min(adj / 0.05, 1); // 0-1 arası
+    const norm = Math.min(adj / 0.05, 1); // 0-1; 0.05 ≈ ~100 dB civarı gürültüde doyum
 
-    const dB = Math.round(norm * 100);
+    const dB = Math.round(norm * 100); // 0-100 arası skala
 
     valEl.innerHTML = `${dB} <span>dB</span>`;
     updateStatus(dB);
 
-    ptrEl.style.top = `${(1 - norm) * 100}%`;
-
+    /* pointer & bar dolumu */
+    ptrEl.style.top = `${(1-norm)*100}%`;
     const active = Math.round(norm * barCount);
     bars.forEach((b, i) => { b.style.opacity = i < active ? "1" : "0.2"; });
 }
@@ -74,14 +73,12 @@ async function init() {
         ctx = new(window.AudioContext || window.webkitAudioContext)();
         analyser = ctx.createAnalyser();
         analyser.fftSize = 1024;
-
         ctx.createMediaStreamSource(stream).connect(analyser);
-        setInterval(render, 100);
-    } catch (err) {
+        setInterval(render, 100); // 10 FPS
+    } catch (e) {
         valEl.textContent = "İzin reddedildi";
         statEl.textContent = "";
-        console.error("Mikrofon hatası:", err);
+        console.error("Mikrofon hatası:", e);
     }
 }
-
 window.addEventListener("load", init);
