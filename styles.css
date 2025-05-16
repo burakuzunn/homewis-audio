@@ -1,13 +1,13 @@
 :root {
-     --quiet: #2ecc71; 
-      --mid:   #f1c40f; 
-      --warn:  #e67e22; 
-      --loud:  #e74c3c; 
-      --bg:    #121212;
-      --panel: #1e1e1e;
-      --text:  #ffffff;
-      --sub:   #8a8a8a;
-      --pointer: #3498db; 
+    --quiet: #2ecc71;
+    --mid: #f1c40f;
+    --warn: #e67e22;
+    --loud: #e74c3c;
+    --bg: #121212;
+    --panel: #1e1e1e;
+    --text: #ffffff;
+    --sub: #8a8a8a;
+    --pointer: #3498db;
 }
 
 * {
@@ -100,13 +100,13 @@ h1 {
     position: relative;
 }
 
-
 .bar {
     width: 100%;
     height: 4px;
     border-radius: 2px;
     background: #444;
     flex-shrink: 0;
+    transition: opacity 0.1s ease;
 }
 
 .bar.green {
@@ -134,13 +134,4 @@ h1 {
     transition: top 0.05s linear;
     background: var(--pointer);
     z-index: 5;
-}
-
-#glabels {
-    margin-top: 0.6rem;
-    font-size: 0.85rem;
-    color: var(--sub);
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
 }
