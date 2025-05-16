@@ -1,13 +1,12 @@
 'use strict';
 
 // Parametreler
-const SAMPLE_WINDOW = 128;
+const SAMPLE_WINDOW = 1024;
 const MIN_DB = 0;
 const MAX_DB = 80;
 const UI_INTERVAL_MS = 150;
 const TOTAL_BARS = 40;
 const GAIN_OFFSET = 0;
-const SLIDER_SMOOTH = 0.5;
 
 // DOM
 const valEl = document.getElementById("value");
@@ -31,19 +30,20 @@ for (let i = 0; i < TOTAL_BARS; i++) {
 const bars = [...document.querySelectorAll("#bar-container .bar")];
 
 let ctx, analyser;
-let smoothDb = 0;
 let minDb = Infinity,
     maxDb = -Infinity,
     sumDb = 0,
     sampleCnt = 0;
 
-let lastDb = 0;
-let decayHold = 0;
-const DECAY_HOLD_MAX = 8;
-
 async function init() {
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const stream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+                echoCancellation: false,
+                noiseSuppression: false,
+                autoGainControl: false
+            }
+        });
         ctx = new(window.AudioContext || window.webkitAudioContext)();
         analyser = ctx.createAnalyser();
         analyser.fftSize = 2048;
@@ -62,7 +62,7 @@ function getRms() {
     let sum = 0;
     for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
     const rms = Math.sqrt(sum / buf.length);
-    return rms < 0.0002 ? 0 : rms;
+    return rms < 0.00001 ? 0.00001 : rms; // 0'dan kaçınmak için min değer ver
 }
 
 function getDb() {
@@ -88,29 +88,16 @@ function updateStatus(db) {
 function updateUI() {
     const db = getDb();
 
-    if (db >= lastDb) {
-        smoothDb = db;
-        decayHold = DECAY_HOLD_MAX;
-    } else {
-        if (decayHold > 0) {
-            decayHold--;
-        } else {
-            smoothDb = smoothDb * (1 - SLIDER_SMOOTH) + db * SLIDER_SMOOTH;
-        }
-    }
-
-    lastDb = db;
-
-    const norm = smoothDb / MAX_DB;
+    const norm = db / MAX_DB;
     const active = Math.round(norm * bars.length);
     bars.forEach((b, i) => b.style.opacity = i < active ? "1" : "0.25");
 
-    valEl.innerHTML = `${Math.round(smoothDb)} <span>dB</span>`;
-    updateStatus(smoothDb);
+    valEl.innerHTML = `${Math.round(db)} <span>dB</span>`;
+    updateStatus(db);
 
-    minDb = Math.min(minDb, smoothDb);
-    maxDb = Math.max(maxDb, smoothDb);
-    sumDb += smoothDb;
+    minDb = Math.min(minDb, db);
+    maxDb = Math.max(maxDb, db);
+    sumDb += db;
     sampleCnt++;
 
     if (minEl) minEl.textContent = `${Math.round(minDb)}`;
