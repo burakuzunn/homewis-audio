@@ -3,23 +3,28 @@ const statEl = document.getElementById("status");
 const ptrEl = document.getElementById("pointer");
 const container = document.getElementById("bar-container");
 
-var forCount = 50;
-for (let i = 0; i < forCount; i++) {
+const barCount = 50;
+const bars = [];
+
+for (let i = 0; i < barCount; i++) {
     const bar = document.createElement("div");
     bar.classList.add("bar");
+
     if (i < 15) bar.classList.add("red");
     else if (i < 30) bar.classList.add("orange");
     else if (i < 40) bar.classList.add("yellow");
     else bar.classList.add("green");
-    container.appendChild(bar);
 
-    const centerIndex = forCount / 2;
+    const centerIndex = barCount / 2;
     const dist = Math.abs(i + 0.5 - centerIndex);
     const ratio = dist / centerIndex;
     const minOp = 0.5;
     const maxOp = 1.0;
     const opacity = minOp + (maxOp - minOp) * ratio;
     bar.style.opacity = opacity.toFixed(2);
+
+    container.appendChild(bar);
+    bars.push(bar);
 }
 
 let ctx, analyser;
@@ -54,22 +59,15 @@ function render() {
     valEl.innerHTML = `${dB} <span>dB</span>`;
     updateStatus(dB);
 
+    // Pointer çizgisi yukarıdan aşağıya hareket eder
     const pct = dB / 100;
     ptrEl.style.top = `${(1 - pct) * 100}%`;
 
-    const barCount = container.querySelectorAll(".bar").length;
-    const activeCount = Math.round((dB / 100) * barCount);
-    const bars = container.querySelectorAll(".bar");
+    const activeCount = Math.round(pct * barCount);
 
-    bars.forEach((bar, index) => {
-        if (index < activeCount) {
-            bar.style.opacity = "1";
-        } else {
-            bar.style.opacity = "0.2";
-        }
+    bars.forEach((bar, i) => {
+        bar.style.opacity = i < activeCount ? "1" : "0.2";
     });
-
-    requestAnimationFrame(render);
 }
 
 async function init() {
@@ -77,16 +75,17 @@ async function init() {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         ctx = new(window.AudioContext || window.webkitAudioContext)();
         analyser = ctx.createAnalyser();
-        analyser.fftSize = 2048;
+        analyser.fftSize = 1024; // CPU yükünü azalt
 
         const src = ctx.createMediaStreamSource(stream);
         src.connect(analyser);
 
-        render();
+        // render() fonksiyonunu daha az yoğun çalıştır:
+        setInterval(render, 100); // 10 FPS (optimum performans)
     } catch (err) {
         valEl.textContent = "İzin reddedildi";
         statEl.textContent = "";
-        console.error(err);
+        console.error("Mikrofon hatası:", err);
     }
 }
 
