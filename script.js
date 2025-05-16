@@ -6,7 +6,7 @@ const container = document.getElementById("bar-container");
 const barCount = 100;
 const bars = [];
 
-/* bar renkleri (0-100 dB) */
+/* — barları oluştur, alt yeşil → üst kırmızı — */
 for (let i = 0; i < barCount; i++) {
     const bar = document.createElement("div");
     bar.className = "bar";
@@ -18,12 +18,16 @@ for (let i = 0; i < barCount; i++) {
     bars.push(bar);
 }
 
+/* — Web Audio — */
 let ctx, analyser;
-let noiseFloor = null,
-    calibFrames = 0;
-let smoothRms = 0; // EMA
 
-function hann(n, N) { return 0.5 * (1 - Math.cos(2 * Math.PI * n / (N - 1))); }
+/* kalibrasyon */
+let noiseRef = null; // ortam sessizken taban dB
+let calFrames = 0;
+const CAL_FRAME_LIMIT = 10; // 10 × 150 ms ≈ 1.5 s
+
+/* EMA */
+let smoothDb = 0;
 
 function updateStatus(dB) {
     if (dB < 40) { statEl.textContent = "Çok sessiz";
@@ -37,34 +41,39 @@ function render() {
     const data = new Uint8Array(N);
     analyser.getByteTimeDomainData(data);
 
-    /* RMS + Hann penceresi */
+    /* RMS */
     let sum = 0;
     for (let n = 0; n < N; n++) {
-        const x = ((data[n] - 128) / 128) * hann(n, N);
-        sum += x * x;
+        const v = (data[n] - 128) / 128;
+        sum += v * v;
     }
     const rms = Math.sqrt(sum / N);
 
-    /* ortam tabanı kalibrasyonu (10 kare ≈ 2 sn) */
-    if (noiseFloor === null) { noiseFloor = rms;
-        calibFrames = 0; }
-    if (calibFrames < 10) { noiseFloor = Math.min(noiseFloor, rms);
-        calibFrames++; }
+    /* dBFS (0 = tam skala, –∞ = sessizlik) +100 shift ile pozitif */
+    const rawDb = 20 * Math.log10(rms) + 100;
 
-    /* EMA ile yumuşatma (alpha=0.85) */
-    smoothRms = smoothRms * 0.85 + rms * 0.15;
+    /* ilk 1.5 s taban değeri yakala */
+    if (noiseRef === null || calFrames < CAL_FRAME_LIMIT) {
+        noiseRef = noiseRef === null ? rawDb : Math.min(noiseRef, rawDb);
+        calFrames++;
+    }
 
-    const adj = Math.max(0, smoothRms - noiseFloor);
-    const norm = Math.min(adj / 0.08, 1); // 0-1 arası
-    const dB = Math.round(norm * 100);
+    /* ortama göre ayarlanmış değer & EMA */
+    const adjDb = Math.max(0, rawDb - noiseRef); // 0 dB = sessizlik
+    smoothDb = 0.9 * smoothDb + 0.1 * adjDb; // α 0.1
 
-    /* UI güncelle */
-    valEl.innerHTML = `${dB} <span>dB</span>`;
-    updateStatus(dB);
-    ptrEl.style.top = `${(1-norm)*100}%`;
+    /* 0–100 map: 0 dB → 0, 30 dB → 100 (ayar) */
+    const norm = Math.min(smoothDb / 30, 1);
+    const dispDb = Math.round(norm * 100);
+
+    /* --- UI --- */
+    valEl.innerHTML = `${dispDb} <span>dB</span>`;
+    updateStatus(dispDb);
+
+    ptrEl.style.top = `${(1 - norm) * 100}%`;
 
     const active = Math.round(norm * barCount);
-    bars.forEach((b, i) => { b.style.opacity = i < active ? "1" : "0.25"; });
+    bars.forEach((b, i) => b.style.opacity = i < active ? "1" : "0.25");
 }
 
 async function init() {
@@ -72,13 +81,16 @@ async function init() {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         ctx = new(window.AudioContext || window.webkitAudioContext)();
         analyser = ctx.createAnalyser();
-        analyser.fftSize = 2048; // daha geniş pencere
+        analyser.fftSize = 2048; // daha kararlı RMS
+
         ctx.createMediaStreamSource(stream).connect(analyser);
-        setInterval(render, 200); // 5 FPS – kararlı
-    } catch (e) {
+
+        /* 150 ms’de bir ölçüm */
+        setInterval(render, 150);
+    } catch (err) {
         valEl.textContent = "İzin reddedildi";
         statEl.textContent = "";
-        console.error("Mic error:", e);
+        console.error("Mic error:", err);
     }
 }
 window.addEventListener("load", init);
