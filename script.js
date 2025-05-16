@@ -45,7 +45,7 @@ function render() {
 
     valEl.innerHTML = `${dB} <span>dB</span>`;
     updateStatus(dB);
-    s
+
     const pct = dB / 100;
     ptrEl.style.left = `calc(${pct * 100}% - 1px)`;
 
@@ -55,19 +55,22 @@ function render() {
 async function init() {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        console.log("🎤 Mikrofon erişimi ALINDI");
+
         ctx = new(window.AudioContext || window.webkitAudioContext)();
         analyser = ctx.createAnalyser();
         analyser.fftSize = 2048;
 
-        const src = ctx.createMediaStreamSource(stream);
-        src.connect(analyser);
+        const source = ctx.createMediaStreamSource(stream);
+        source.connect(analyser);
 
         render();
     } catch (err) {
-        valEl.textContent = 'İzin reddedildi';
-        statEl.textContent = '';
-        console.error('🎤 Mikrofon erişim hatası:', err);
+        console.error("❌ Mikrofon erişim hatası:", err);
+        valEl.textContent = "İzin reddedildi";
+        statEl.textContent = "Mikrofon engellendi";
+        statEl.style.color = "red";
     }
 }
 
-window.addEventListener('load', init);
+window.addEventListener("load", init);
