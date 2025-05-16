@@ -3,25 +3,17 @@ const statEl = document.getElementById("status");
 const ptrEl = document.getElementById("pointer");
 const container = document.getElementById("bar-container");
 
-const barCount = 100; // 100  adet bar
+const barCount = 100;
 const bars = [];
 
-/* ------- barları oluştur (0-dB yeşil, 100-dB kırmızı) ------- */
+/* bar renkleri (0-100 dB) */
 for (let i = 0; i < barCount; i++) {
     const bar = document.createElement("div");
-    bar.classList.add("bar");
-
-    /* alt-orta-üst renk dilimi: 0-29 green, 30-59 yellow, 60-79 orange, 80-99 red */
+    bar.className = "bar";
     if (i < 30) bar.classList.add("green");
     else if (i < 60) bar.classList.add("yellow");
     else if (i < 80) bar.classList.add("orange");
     else bar.classList.add("red");
-
-    /* hafif opaklık efekti */
-    const center = barCount / 2,
-        dist = Math.abs(i + .5 - center);
-    bar.style.opacity = (0.5 + (dist / center) * 0.5).toFixed(2);
-
     container.appendChild(bar);
     bars.push(bar);
 }
@@ -29,6 +21,9 @@ for (let i = 0; i < barCount; i++) {
 let ctx, analyser;
 let noiseFloor = null,
     calibFrames = 0;
+let smoothRms = 0; // EMA
+
+function hann(n, N) { return 0.5 * (1 - Math.cos(2 * Math.PI * n / (N - 1))); }
 
 function updateStatus(dB) {
     if (dB < 40) { statEl.textContent = "Çok sessiz";
@@ -38,33 +33,38 @@ function updateStatus(dB) {
 }
 
 function render() {
-    const data = new Uint8Array(analyser.fftSize);
+    const N = analyser.fftSize;
+    const data = new Uint8Array(N);
     analyser.getByteTimeDomainData(data);
 
-    /* RMS */
+    /* RMS + Hann penceresi */
     let sum = 0;
-    for (const v of data) { const x = (v - 128) / 128;
-        sum += x * x; }
-    const rms = Math.sqrt(sum / data.length);
+    for (let n = 0; n < N; n++) {
+        const x = ((data[n] - 128) / 128) * hann(n, N);
+        sum += x * x;
+    }
+    const rms = Math.sqrt(sum / N);
 
-    /* kalibrasyon – ilk 1 sn en düşük RMS’i taban al */
+    /* ortam tabanı kalibrasyonu (10 kare ≈ 2 sn) */
     if (noiseFloor === null) { noiseFloor = rms;
         calibFrames = 0; }
     if (calibFrames < 10) { noiseFloor = Math.min(noiseFloor, rms);
         calibFrames++; }
 
-    const adj = Math.max(0, rms - noiseFloor);
-    const norm = Math.min(adj / 0.05, 1); // 0-1; 0.05 ≈ ~100 dB civarı gürültüde doyum
+    /* EMA ile yumuşatma (alpha=0.85) */
+    smoothRms = smoothRms * 0.85 + rms * 0.15;
 
-    const dB = Math.round(norm * 100); // 0-100 arası skala
+    const adj = Math.max(0, smoothRms - noiseFloor);
+    const norm = Math.min(adj / 0.08, 1); // 0-1 arası
+    const dB = Math.round(norm * 100);
 
+    /* UI güncelle */
     valEl.innerHTML = `${dB} <span>dB</span>`;
     updateStatus(dB);
-
-    /* pointer & bar dolumu */
     ptrEl.style.top = `${(1-norm)*100}%`;
+
     const active = Math.round(norm * barCount);
-    bars.forEach((b, i) => { b.style.opacity = i < active ? "1" : "0.2"; });
+    bars.forEach((b, i) => { b.style.opacity = i < active ? "1" : "0.25"; });
 }
 
 async function init() {
@@ -72,13 +72,13 @@ async function init() {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         ctx = new(window.AudioContext || window.webkitAudioContext)();
         analyser = ctx.createAnalyser();
-        analyser.fftSize = 1024;
+        analyser.fftSize = 2048; // daha geniş pencere
         ctx.createMediaStreamSource(stream).connect(analyser);
-        setInterval(render, 100); // 10 FPS
+        setInterval(render, 200); // 5 FPS – kararlı
     } catch (e) {
         valEl.textContent = "İzin reddedildi";
         statEl.textContent = "";
-        console.error("Mikrofon hatası:", e);
+        console.error("Mic error:", e);
     }
 }
 window.addEventListener("load", init);
