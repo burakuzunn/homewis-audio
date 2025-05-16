@@ -45,7 +45,7 @@ function render() {
 
     valEl.innerHTML = `${dB} <span>dB</span>`;
     updateStatus(dB);
-
+    s
     const pct = dB / 100;
     ptrEl.style.left = `calc(${pct * 100}% - 1px)`;
 
@@ -66,7 +66,7 @@ async function init() {
     } catch (err) {
         valEl.textContent = 'İzin reddedildi';
         statEl.textContent = '';
-        console.error(err);
+        console.error('🎤 Mikrofon erişim hatası:', err);
     }
 }
 
